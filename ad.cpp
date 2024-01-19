@@ -24,7 +24,7 @@ void sendPacket(const std::string& ssid, const std::string& dev, cappacket& temp
     };
     memcpy(packet.beacon.data + 2 + ssid_len, additional_data, 22);
 
-    size_t packet_size = sizeof(packet.header) + sizeof(packet.beacon.header) + sizeof(packet.beacon.fixed) + 2 + ssid_len + 30;
+    size_t packet_size = sizeof(packet.header) + sizeof(packet.beacon.header) + sizeof(packet.beacon.fixed) + 2 + ssid_len + 26;
 
     while (true) {
         if (pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), packet_size) != 0) {
@@ -66,9 +66,11 @@ int main() {
 	packet.beacon.header.bssid[5] = 0x05;
 	packet.beacon.header.duration_id = 0;
 	packet.beacon.header.frame_control = 0x80;
+
 	for(int i =0;i<6;i++){
 		packet.beacon.header.readdr1[i]= 0xff;
 	}
+
 	packet.beacon.header.sequence_control = 3626;
 	packet.beacon.header.sourceaddr4[0] = 0x88;
 	packet.beacon.header.sourceaddr4[1] = 0xc3;
@@ -104,6 +106,5 @@ int main() {
             th.join();
         }
     }
-
     return 0;
 }
