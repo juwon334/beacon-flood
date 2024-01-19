@@ -5,7 +5,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <iostream>
+#include <thread>
+#include <fstream>
 #include <vector>
+#include <cstring>
 
 struct present {
 	u_int32_t present1;
