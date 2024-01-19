@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <vector>
 
 struct present {
 	u_int32_t present1;
@@ -50,19 +51,10 @@ struct beacon_frame_fixed {
 	u_int16_t capabilities_info;
 };
 
-struct info_element {
-	uint8_t id;
-	uint8_t length;
-	uint8_t data[4];
-	uint8_t id1;
-	uint8_t length1;
-	uint8_t data1[20];
-};
-
 struct beacon_frame {
-	struct ieee80211_header header;
-	struct beacon_frame_fixed fixed;
-	struct info_element ie;
+    struct ieee80211_header header;
+    struct beacon_frame_fixed fixed;
+    u_int8_t data[1024];  // std::vector를 사용한 동적 데이터
 };
 
 struct tag_rsn{
@@ -77,18 +69,6 @@ struct cappacket{
 	struct ieee80211_radiotap_header header;
 	struct beacon_frame beacon;
 };
-
-char* uint8ArrayToAsciiString(const uint8_t *array, size_t size) {
-	char *asciiString = malloc(size + 1); // +1 for null-terminator
-	if (asciiString == NULL) {
-		return NULL;
-	}
-	for (size_t i = 0; i < size; ++i) {
-		asciiString[i] = (char)array[i];
-	}
-	asciiString[size] = '\0';
-	return asciiString;
-}
 
 void printBinary(unsigned int num) {
 	unsigned int mask = 1 << (sizeof(num) * 8 - 1);
