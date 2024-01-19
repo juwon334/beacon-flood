@@ -1,39 +1,5 @@
 #include "ad.h"
 
-void sendPacket(const std::string& ssid, const std::string& dev, cappacket& templatePacket) {
-	char errbuf[PCAP_ERRBUF_SIZE];
-	std::cout << "ssid : " << ssid << std::endl;
-    pcap_t* handle = pcap_open_live(dev.c_str(), BUFSIZ, 1, 1000, errbuf);
-    if (handle == NULL) {
-        std::cerr << "네트워크 인터페이스 '" << dev << "'를 열 수 없습니다: " << errbuf << std::endl;
-        return;
-    }
-    size_t ssid_len = ssid.length();
-
-    cappacket packet = templatePacket;
-    memset(packet.beacon.data, 0, sizeof(packet.beacon.data));
-    packet.beacon.data[0] = 0x00;
-    packet.beacon.data[1] = ssid_len;
-    memcpy(packet.beacon.data + 2, ssid.c_str(), ssid_len);
-
-    // 추가 데이터
-    const uint8_t additional_data[] = {
-        0x30, 0x14, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x04,
-        0x01, 0x00, 0x00, 0x0f, 0xac, 0x04, 0x01,
-        0x00, 0x00, 0x0f, 0xac, 0x02, 0x0c, 0x00
-    };
-    memcpy(packet.beacon.data + 2 + ssid_len, additional_data, 22);
-
-    size_t packet_size = sizeof(packet.header) + sizeof(packet.beacon.header) + sizeof(packet.beacon.fixed) + 2 + ssid_len + 26;
-
-    while (true) {
-        if (pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), packet_size) != 0) {
-            std::cerr << "패킷 전송 실패: " << pcap_geterr(handle) << " for SSID: " << ssid << std::endl;
-        }
-    }
-	pcap_close(handle);
-}
-
 int main() {
 	std::string dev = "wlan0";
     cappacket packet;
