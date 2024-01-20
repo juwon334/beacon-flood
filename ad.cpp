@@ -1,58 +1,41 @@
-#include "ad.h"
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cstring>
+#include <thread>
+#include <pcap.h>
+
+void sendPacket(const std::string& ssid, const std::string& dev, std::vector<u_char> packet_data) {
+    char errbuf[PCAP_ERRBUF_SIZE];
+
+    pcap_t* handle = pcap_open_live(dev.c_str(), BUFSIZ, 1, 1000, errbuf);
+    if (handle == NULL) {
+        std::cerr << "network interface'" << dev << "'is down: " << errbuf << std::endl;
+        return;
+    }
+	std::cout << "thread : " << ssid;
+
+    const std::vector<u_char> additional_data = {
+        0x30, 0x14, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x04,
+        0x01, 0x00, 0x00, 0x0f, 0xac, 0x04, 0x01,
+        0x00, 0x00, 0x0f, 0xac, 0x02, 0x0c, 0x00
+    };
+
+    packet_data.insert(packet_data.end(), additional_data.begin(), additional_data.end());
+
+    std::cout << std::endl;
+    while (true) {
+        if (pcap_sendpacket(handle, packet_data.data(), packet_data.size()+4) != 0) {
+            std::cerr << "Can not send packet : " << pcap_geterr(handle) << " for SSID: " << ssid << std::endl;
+        }
+    }
+
+    pcap_close(handle);
+}
 
 int main() {
-	std::string dev = "wlan0";
-    cappacket packet;
-
-    // 패킷 초기화
-    packet.header.it_version = 0x00;
-    packet.header.it_pad = 0;
-	packet.header.it_len = 32;
-	packet.header.presentstruct.present1 = 0xa00040ae;
-	packet.header.presentstruct.present2 = 0xa0000820;
-	packet.header.presentstruct.present3 = 0x00000820;
-	packet.header.np.ant1 = 0;
-	packet.header.np.ant2 = 0;
-	packet.header.np.cf = 0;
-	packet.header.np.cflag = 0x00a0;
-	packet.header.np.datarate = 0;
-	packet.header.np.flag = 0x10;
-	packet.header.np.pwr1 = 0xb4;
-	packet.header.np.pwr2 = 0xb4;
-	packet.header.np.pwr = 0;
-	packet.header.np.rf = 0;
-	packet.header.np.sq = 0;
-
-	//beacon
-	packet.beacon.header.bssid[0] = 0x88;
-	packet.beacon.header.bssid[1] = 0xc3;
-	packet.beacon.header.bssid[2] = 0x97;
-	packet.beacon.header.bssid[3] = 0xc7;
-	packet.beacon.header.bssid[4] = 0x1b;
-	packet.beacon.header.bssid[5] = 0x05;
-	packet.beacon.header.duration_id = 0;
-	packet.beacon.header.frame_control = 0x80;
-
-	for(int i =0;i<6;i++){
-		packet.beacon.header.readdr1[i]= 0xff;
-	}
-
-	packet.beacon.header.sequence_control = 3626;
-	packet.beacon.header.sourceaddr4[0] = 0x88;
-	packet.beacon.header.sourceaddr4[1] = 0xc3;
-	packet.beacon.header.sourceaddr4[2] = 0x97;
-	packet.beacon.header.sourceaddr4[3] = 0xc7;
-	packet.beacon.header.sourceaddr4[4] = 0x1b;
-	packet.beacon.header.sourceaddr4[5] = 0x05;
-
-	//tag
-	packet.beacon.fixed.beacon_interval = 0x6400;
-	packet.beacon.fixed.capabilities_info = 0x0011;
-	for(int i =0;i<6;i++){
-		packet.beacon.fixed.timestamp[i] = 0;
-	}
-	
-  	std::vector<std::string> ssids;
+    std::string dev = "wlan0";
+    std::vector<std::string> ssids;
     std::ifstream ssid_file("ssid-list.txt");
     std::string ssid;
 
@@ -61,16 +44,29 @@ int main() {
         ssids.push_back(ssid);
     }
 
-    std::vector<std::thread> threads;
-    for (const auto& ssid : ssids) {
-        std::cout << "Creating thread for SSID: " << ssid << std::endl;
-        threads.emplace_back(sendPacket, ssid, dev, std::ref(packet));
-    }
+	uint8_t bytes[69] = {
+		0x00 ,0x00 ,0x20 ,0x00 ,0xae ,0x40 ,0x00 ,0xa0 ,0x20 ,0x08,
+		0x00 ,0xa0 ,0x20 ,0x08 ,0x00 ,0x00 ,0x10 ,0x02 ,0x8a ,0x09,
+		0xa0 ,0x00 ,0xb4 ,0x00 ,0x5a ,0x00 ,0x00 ,0x00 ,0xae ,0x00,
+		0xae ,0x01, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0x88, 0xc3, 0x97, 0xc7, 0x1b, 0x05, 0x88, 0xc3,
+		0x97, 0xc7, 0x1b, 0x05, 0xa0, 0xe2, 0x80, 0x41, 0x7c, 0x60,
+		0xdd, 0x00, 0x00, 0x00, 0x64, 0x00, 0x31, 0x04, 0x00
+	};
 
-    for (auto& th : threads) {
-        if (th.joinable()) {
-            th.join();
+    std::vector<std::thread> threads;
+ 	for (const auto& ssid : ssids) {
+    	std::vector<u_char> packet_data(bytes, bytes + sizeof(bytes));
+    	packet_data.push_back(static_cast<u_char>(ssid.length()));
+    	packet_data.insert(packet_data.end(), ssid.begin(), ssid.end());
+    	threads.emplace_back(sendPacket, ssid, dev, packet_data);
+	}
+
+    for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
+
     return 0;
 }
