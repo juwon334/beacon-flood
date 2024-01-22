@@ -4,6 +4,7 @@
 #include <cstring>
 #include <thread>
 #include <pcap.h>
+#include <chrono>
 
 void sendPacket(const std::string& ssid, const std::string& dev, std::vector<u_char> packet_data) {
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -28,13 +29,13 @@ void sendPacket(const std::string& ssid, const std::string& dev, std::vector<u_c
 		if (pcap_sendpacket(handle, packet_data.data(), packet_data.size()+4) != 0) {
 			std::cerr << "Can not send packet : " << pcap_geterr(handle) << " for SSID: " << ssid << std::endl;
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
-
 	pcap_close(handle);
 }
 
 int main() {
-	std::string dev = "wlan0";
+	std::string dev = "wlx588694f7b21f";
 	std::vector<std::string> ssids;
 	std::ifstream ssid_file("ssid-list.txt");
 	std::string ssid;
